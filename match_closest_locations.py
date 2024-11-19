@@ -46,28 +46,29 @@ def preprocess_and_geocode(list_a, list_b):
 
     return list_a, list_b
 
-def calculate_distances(list_a, list_b):
-    """Calculate distances and find the closest matches."""
+def calculate_distances(stock_locations, customer_locations):
+    """Calculate distances and find the closest stock location for each customer."""
     results = []
-    for _, row_a in tqdm(list_a.iterrows(), desc="Matching Locations", total=len(list_a)):
-        coord_a = (row_a["Latitude"], row_a["Longitude"])
-        closest_match = None
+    for _, customer in tqdm(customer_locations.iterrows(), desc="Matching Customers", total=len(customer_locations)):
+        coord_customer = (customer["Latitude"], customer["Longitude"])
+        closest_stock = None
         min_distance = float("inf")
         
-        for _, row_b in list_b.iterrows():
-            coord_b = (row_b["Latitude"], row_b["Longitude"])
-            if not (isnan(coord_a[0]) or isnan(coord_a[1]) or isnan(coord_b[0]) or isnan(coord_b[1])):
-                distance = geodesic(coord_a, coord_b).kilometers
+        for _, stock in stock_locations.iterrows():
+            coord_stock = (stock["Latitude"], stock["Longitude"])
+            if not (isnan(coord_customer[0]) or isnan(coord_customer[1]) or isnan(coord_stock[0]) or isnan(coord_stock[1])):
+                distance = geodesic(coord_customer, coord_stock).kilometers
                 if distance < min_distance:
                     min_distance = distance
-                    closest_match = row_b
+                    closest_stock = stock
             else:
-                print(f"Ungültige Koordinaten gefunden: {coord_a}, {coord_b}")
-                
-        if closest_match is not None:
+                print(f"Ungültige Koordinaten gefunden: {coord_customer}, {coord_stock}")
+        
+        
+        if closest_stock is not None:
             results.append({
-                "Address from List A": row_a["Full Address"],
-                "Location from List B": f"{closest_match['City']} {closest_match['Zip Code']}",
+                "Customer Location": f"{customer['City']} {customer['Zip Code']}",
+                "Closest Stock Location": closest_stock["Full Address"],
                 "Distance (km)": min_distance
             })
     return pd.DataFrame(results)
@@ -78,18 +79,18 @@ def save_results(results, output_file):
 
 def main():
     # Input and Output Files
-    list_a_file = "list_a.csv"
-    list_b_file = "list_b.csv"
-    output_file = "matched_locations.csv"
+    stock_file = "list_a.csv"
+    customer_file = "list_b.csv"
+    output_file = "matched_customers_to_stocks.csv"
 
     # Step 1: Load Data
-    list_a, list_b = load_data(list_a_file, list_b_file)
+    stock_locations, customer_locations = load_data(stock_file, customer_file)
 
     # Step 2: Preprocess and Geocode
-    list_a, list_b = preprocess_and_geocode(list_a, list_b)
+    stock_locations, customer_locations = preprocess_and_geocode(stock_locations, customer_locations)
 
-    # Step 3: Calculate Distances and Find Matches
-    results = calculate_distances(list_a, list_b)
+    # Step 3: Calculate Distances and Find Closest Stock for Each Customer
+    results = calculate_distances(stock_locations, customer_locations)
 
     # Step 4: Save Results
     save_results(results, output_file)
